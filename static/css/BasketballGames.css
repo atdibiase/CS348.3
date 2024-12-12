@@ -1,0 +1,60 @@
+.basketball-games {
+    font-family: Arial, sans-serif;
+  }
+  
+  .header {
+    background-color: #2a6171;
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .header h1 {
+    margin: 0;
+  }
+  
+  .buttons button {
+    margin: 0 5px;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 4px;
+  }
+  
+  .add-game {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  .edit-game {
+    background-color: #ffc107;
+    color: black;
+  }
+  
+  .delete-game {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  .games-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  .games-table th,
+  .games-table td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  .games-table th {
+    background-color: #2a6171;
+    color: white;
+  }
+
+  

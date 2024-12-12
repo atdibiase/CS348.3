@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basketball Games</title>
+    <link rel="stylesheet" href="{% static 'css/BasketballGames.css' %}?v=1">
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = document.getElementById('app');
+            if (app) {
+                app.innerHTML = `
+                    <header class="header">
+                        <h1>Basketball Games</h1>
+                        <div class="buttons">
+                            <button class="add-game">Add Game</button>
+                            <button class="edit-game">Edit Game</button>
+                            <button class="delete-game">Delete Game</button>
+                        </div>
+                    </header>
+                    <div id="filter-section">
+                        <h2>Filter Games</h2>
+                        <label for="start-date">Start Date:</label>
+                        <input type="date" id="start-date">
+                        <label for="end-date">End Date:</label>
+                        <input type="date" id="end-date">
+                        <label for="game-id-start">Game ID Start:</label>
+                        <input type="number" id="game-id-start">
+                        <label for="game-id-end">Game ID End:</label>
+                        <input type="number" id="game-id-end">
+                        <label for="team-name">Team Name:</label>
+                        <select id="team-name">
+                            <option value="">Select Team</option>
+                        </select>
+                        <label for="team-season">Team Season:</label>
+                        <select id="team-season">
+                            <option value="">Select Season</option>
+                        </select>
+                        <button id="filter-button">Filter</button>
+                        <div id="report-section"></div>
+                            <button id="generate-report">Generate Report</button>
+                        </div>
+                    </div>
+                    <table class="games-table">
+                        <thead>
+                            <tr>
+                                <th>Game ID</th>
+                                <th>Date</th>
+                                <th>Home Team</th>
+                                <th>Away Team</th>
+                                <th>Location</th>
+                                <th>Home Score</th>
+                                <th>Away Score</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                `;
+
+                document.querySelector('.add-game').addEventListener('click', async () => {
+                    const newGame = {};
+                    newGame.date = prompt('Enter game date (YYYY-MM-DD):');
+                    if (newGame.date === null) return;
+                    const homeTeamId = prompt('Enter home team ID:');
+                    if (homeTeamId === null) return;
+                    newGame.home_team_id = parseInt(homeTeamId, 10);
+                    const awayTeamId = prompt('Enter away team ID:');
+                    if (awayTeamId === null) return;
+                    newGame.away_team_id = parseInt(awayTeamId, 10);
+                    const homeScore = prompt('Enter home team score:');
+                    if (homeScore === null) return;
+                    newGame.home_score = parseInt(homeScore, 10);
+                    const awayScore = prompt('Enter away team score:');
+                    if (awayScore === null) return;
+                    newGame.away_score = parseInt(awayScore, 10);
+                    try {
+                        const response = await fetch('/add-game/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(newGame),
+                        });
+                        if (response.ok) {
+                            alert('Game added successfully!');
+                            const updatedGames = await fetch('/get-games/').then((res) => res.json());
+                            renderTable(updatedGames);
+                        } else {
+                            alert('Failed to add game. Check your inputs!');
+                        }
+                    } catch (error) {
+                        console.error('Error adding game:', error);
+                        alert('An error occurred. Please try again.');
+                    }
+                });
+
+                document.querySelector('.edit-game').addEventListener('click', async () => {
+                    const gameId = parseInt(prompt('Enter the Game ID you want to edit:'), 10);
+                    if (isNaN(gameId)) {
+                        alert('Invalid Game ID. Please enter a valid number.');
+                        return;
+                    }
+                    const updatedGame = {
+                        date: prompt('Enter new game date (YYYY-MM-DD):'),
+                        home_team_id: parseInt(prompt('Enter new home team ID:'), 10),
+                        away_team_id: parseInt(prompt('Enter new away team ID:'), 10),
+                        home_score: parseInt(prompt('Enter new home team score:'), 10),
+                        away_score: parseInt(prompt('Enter new away team score:'), 10),
+                    };
+                    try {
+                        const response = await fetch(`/edit-game/${gameId}/`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(updatedGame),
+                        });
+                        if (response.ok) {
+                            alert('Game updated successfully!');
+                            const updatedGames = await fetch('/get-games/').then((res) => res.json());
+                            renderTable(updatedGames);
+                        } else {
+                            alert('Failed to update game. Check your inputs or Game ID!');
+                        }
+                    } catch (error) {
+                        console.error('Error updating game:', error);
+                        alert('An error occurred. Please try again.');
+                    }
+                });
+
+                document.querySelector('.delete-game').addEventListener('click', async () => {
+                    const gameId = parseInt(prompt('Enter the Game ID you want to delete:'), 10);
+                    if (isNaN(gameId)) {
+                        alert('Invalid Game ID. Please enter a valid number.');
+                        return;
+                    }
+                    if (!confirm(`Are you sure you want to delete the game with ID ${gameId}?`)) {
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/delete-game/${gameId}/`, {
+                            method: 'DELETE',
+                        });
+
+                        if (response.ok) {
+                            alert(`Game with ID ${gameId} deleted successfully!`);
+                            const updatedGames = await fetch('/get-games/').then((res) => res.json());
+                            renderTable(updatedGames);
+                        } else {
+                            const errorData = await response.json();
+                            alert(`Failed to delete game: ${errorData.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting game:', error);
+                        alert('An error occurred. Please try again.');
+                    }
+                });
+
+                document.querySelector('#filter-button').addEventListener('click', async () => {
+                    const filters = {
+                        start_date: document.querySelector('#start-date').value,
+                        end_date: document.querySelector('#end-date').value,
+                        game_id_start: parseInt(document.querySelector('#game-id-start').value, 10) || null,
+                        game_id_end: parseInt(document.querySelector('#game-id-end').value, 10) || null,
+                        team_name: document.querySelector('#team-name').value || null,
+                        team_season: document.querySelector('#team-season').value || null,
+                    };
+                    try {
+                        const response = await fetch('/filter-games/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(filters),
+                        });
+                        if (response.ok) {
+                            const filteredGames = await response.json();
+                            renderTable(filteredGames);
+                        } else {
+                            alert('Failed to fetch filtered games.');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching filtered games:', error);
+                    }
+                });
+
+                document.querySelector('#generate-report').addEventListener('click', async () => {
+                    const filters = {
+                        start_date: document.querySelector('#start-date').value,
+                        end_date: document.querySelector('#end-date').value,
+                        game_id_start: parseInt(document.querySelector('#game-id-start').value, 10) || null,
+                        game_id_end: parseInt(document.querySelector('#game-id-end').value, 10) || null,
+                        team_name: document.querySelector('#team-name').value || null,
+                        team_season: document.querySelector('#team-season').value || null,
+                    };
+                    try {
+                        const response = await fetch('/generate-report/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(filters),
+                        });
+                        if (response.ok) {
+                            const report = await response.json();
+                            displayReport(report);
+                        } else {
+                            alert('Failed to generate report. Please check your filters.');
+                        }
+                    } catch (error) {
+                        console.error('Error generating report:', error);
+                        alert('An error occurred. Please try again.');
+                    }
+                });
+
+                const renderTable = (games) => {
+                    const tableBody = document.querySelector('.games-table tbody');
+                    tableBody.innerHTML = games.map((game) => `
+                        <tr>
+                            <td>${game.game_id}</td>
+                            <td>${game.date}</td>
+                            <td>${game.home_team}</td>
+                            <td>${game.away_team}</td>
+                            <td>${game.location}</td>
+                            <td>${game.home_score}</td>
+                            <td>${game.away_score}</td>
+                        </tr>
+                    `).join('');
+                };
+
+                fetch('/get-games/')
+                    .then(response => response.json())
+                    .then(renderTable)
+                    .catch(error => console.error('Error fetching games:', error));
+
+                fetch('/get-teams/')
+                    .then(response => response.json())
+                    .then(teams => {
+                        const teamNameDropdown = document.getElementById('team-name');
+                        const teamSeasonDropdown = document.getElementById('team-season');
+                        teams.forEach(team => {
+                            const teamOption = document.createElement('option');
+                            teamOption.value = team.name;
+                            teamOption.textContent = team.name;
+                            teamNameDropdown.appendChild(teamOption);
+                        });
+                        teamNameDropdown.addEventListener('change', () => {
+                            const selectedTeam = teamNameDropdown.value;
+                            const selectedTeamData = teams.find(team => team.name === selectedTeam);
+                            teamSeasonDropdown.innerHTML = '<option value="">Select Season</option>';
+                            if (selectedTeamData) {
+                                selectedTeamData.seasons.forEach(season => {
+                                    const seasonOption = document.createElement('option');
+                                    seasonOption.value = season;
+                                    seasonOption.textContent = season;
+                                    teamSeasonDropdown.appendChild(seasonOption);
+                                });
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Error fetching teams:', error));
+            }
+        });
+
+        function displayReport(report) {
+            const reportSection = document.getElementById('report-section');
+            reportSection.innerHTML = `
+                <h2>Report</h2>
+                <h3>Filtered Games</h3>
+                <table class="games-table">
+                    <thead>
+                        <tr>
+                            <th>Game ID</th>
+                            <th>Date</th>
+                            <th>Home Team</th>
+                            <th>Away Team</th>
+                            <th>Location</th>
+                            <th>Home Score</th>
+                            <th>Away Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${report.filtered_games
+                            .map(
+                                (game) => `
+                            <tr>
+                                <td>${game.game_id}</td>
+                                <td>${game.date}</td>
+                                <td>${game.home_team}</td>
+                                <td>${game.away_team}</td>
+                                <td>${game.location}</td>
+                                <td>${game.home_score}</td>
+                                <td>${game.away_score}</td>
+                            </tr>`
+                            )
+                            .join('')}
+                    </tbody>
+                </table>
+                <h3>Team Statistics</h3>
+                <table class="teams-table">
+                    <thead>
+                        <tr>
+                            <th>Team Name</th>
+                            <th>Season</th>
+                            <th>Coach</th>
+                            <th>City</th>
+                            <th>Wins</th>
+                            <th>Losses</th>
+                            <th>Win Percentage</th>
+                            <th>Ranking</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${report.teams
+                            .map(
+                                (team) => `
+                            <tr>
+                                <td>${team.name}</td>
+                                <td>${team.season}</td>
+                                <td>${team.coach}</td>
+                                <td>${team.city}</td>
+                                <td>${team.wins}</td>
+                                <td>${team.losses}</td>
+                                <td>${(team.win_percentage * 100).toFixed(2)}%</td>
+                                <td>${team.ranking}</td>
+                            </tr>`
+                            )
+                            .join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    </script>
+</body>
+</html>
